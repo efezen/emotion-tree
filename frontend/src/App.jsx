@@ -57,7 +57,7 @@ const App = () => {
     uclarRef.current = [];
 
     try {
-      const res  = await axios.post('http://localhost:8000/analiz', { metin: input });
+      const res  = await axios.post('https://emotion-tree.onrender.com/analiz', { metin: input });
       const veri = res.data;
 
       if (veri.hata) {
