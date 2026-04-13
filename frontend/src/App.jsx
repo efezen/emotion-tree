@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import './index.css';
@@ -22,7 +22,7 @@ const normalize = (str) =>
 const CANVAS_W = 1600;
 const CANVAS_H = 1200;
 const KOK_X = CANVAS_W / 2;
-const KOK_Y = CANVAS_H - 80;
+const KOK_Y = CANVAS_H - 200;
 
 const sinirla = (aci) => {
   if (aci <= -180) return -170 + Math.random() * 10;
@@ -36,8 +36,17 @@ const App = () => {
   const [govde, setGovde]     = useState(null);
   const [loading, setLoading] = useState(false);
   const [ozet, setOzet]       = useState(null);
-  const [tooltip, setTooltip] = useState(null); // { x, y, dal }
+  const [tooltip, setTooltip] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   const uclarRef = useRef([]);
+
+  // Ekran boyutunu takip et
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const temizle = () => {
     setDallar([]);
@@ -50,14 +59,10 @@ const App = () => {
   const analizVeFilizlendir = async () => {
     if (!input || loading) return;
     setLoading(true);
-    setOzet(null);
-    setDallar([]);
-    setGovde(null);
-    setTooltip(null);
-    uclarRef.current = [];
+    temizle();
 
     try {
-      const res  = await axios.post('https://emotion-tree.onrender.com/analiz', { metin: input });
+      const res = await axios.post('https://emotion-tree.onrender.com/analiz', { metin: input });
       const veri = res.data;
 
       if (veri.hata) {
@@ -66,9 +71,9 @@ const App = () => {
         return;
       }
 
-      const baskinKey  = normalize(veri.baskin);
+      const baskinKey = normalize(veri.baskin);
       const baskinRenk = DUYGU_REHBERI[baskinKey]?.renk || '#888888';
-      const govdeBitisY = KOK_Y - 220;
+      const govdeBitisY = KOK_Y - 250;
 
       setGovde({
         x1: KOK_X, y1: KOK_Y,
@@ -97,7 +102,7 @@ const App = () => {
           const momentum   = Math.min(Math.max(Number(satir.momentum) || 0.5, 0.15), 1.0);
           const branchSay  = Math.random() > 0.45 ? 2 : 1;
 
-          const snapshot  = [...uclarRef.current];
+          const snapshot = [...uclarRef.current];
           const yeniUclar = [];
 
           for (let i = 0; i < branchSay; i++) {
@@ -109,7 +114,8 @@ const App = () => {
             const sapma   = yon * (15 + Math.abs(egim) * 0.8 + Math.random() * 20);
             const yeniAci = sinirla(parent.angle + sapma);
 
-            const uzunluk = (momentum * 130) / (parent.depth * 0.22 + 1) + Math.random() * 30 + 15;
+            const scale = isMobile ? 0.90 : 1.0; 
+            const uzunluk = ((momentum * 130) / (parent.depth * 0.22 + 1) + Math.random() * 30 + 15) * scale;
             const rad     = (yeniAci * Math.PI) / 180;
             const x2      = parent.x + uzunluk * Math.cos(rad);
             const y2      = parent.y + uzunluk * Math.sin(rad);
@@ -119,8 +125,6 @@ const App = () => {
             const ortaRad = ((parent.angle + yeniAci) / 2) * Math.PI / 180;
             const cx = parent.x + (uzunluk * 0.4) * Math.cos(ortaRad) + (Math.random() * 24 - 12);
             const cy = parent.y + (uzunluk * 0.4) * Math.sin(ortaRad) + (Math.random() * 12 - 6);
-
-            if (isNaN(x2) || isNaN(y2)) continue;
 
             const dal = {
               x1: parent.x, y1: parent.y,
@@ -143,26 +147,21 @@ const App = () => {
           await new Promise(r => setTimeout(r, 270));
         }
       }
-
     } catch (e) {
       console.error('Hata:', e);
       setOzet({ baskin: 'ÇÖKÜŞ', mesaj: 'Sunucuyla iletişim koptu.' });
     }
-
-    setInput('');
     setLoading(false);
   };
 
-  const handleMouseEnter = (e, dal) => {
-    setTooltip({ x: e.clientX, y: e.clientY, dal });
-  };
-
-const handleMouseMove = (e) => {
-    // KUSURSUZ KORUMA: prev (önceki state) varsa koordinat güncelle, yoksa null bırak.
+  const handleMouseMove = (e) => {
     setTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
   };
 
-  const handleMouseLeave = () => setTooltip(null);
+  // Dinamik viewBox hesaplama
+  const currentViewBox = isMobile 
+  ? `${CANVAS_W / 4} 150 ${CANVAS_W / 2} 1000` 
+  : `0 0 ${CANVAS_W} ${CANVAS_H}`;
 
   return (
     <div className="app-container">
@@ -192,7 +191,7 @@ const handleMouseMove = (e) => {
             {loading ? 'DÜŞÜNCELER SÜZÜLÜYOR...' : 'FİLİZLENDİR'}
           </button>
           <button
-            className="w-12 h-12 rounded-full border border-white/10 hover:bg-white/5 transition-all text-lg flex items-center justify-center"
+            className="w-12 h-12 rounded-full border border-white/10 hover:bg-white/5 transition-all text-lg flex items-center justify-center text-white"
             onClick={temizle}
           >↺</button>
         </div>
@@ -220,13 +219,9 @@ const handleMouseMove = (e) => {
       </aside>
 
       <main className="canvas-area" onMouseMove={handleMouseMove} onTouchStart={(e) => {
-          // Eğer dokunulan yerde dal yoksa (arka plansa) tooltip'i gizle
-          if (e.target.tagName === 'svg' || e.target.tagName === 'DIV') {
-            setTooltip(null);
-          }
+          if (e.target.tagName === 'svg' || e.target.tagName === 'DIV') setTooltip(null);
         }}>
-        <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{
             backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
             backgroundSize: '100px 100px',
@@ -236,7 +231,7 @@ const handleMouseMove = (e) => {
         <svg
           width="100%"
           height="100%"
-          viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+          viewBox={currentViewBox}
           preserveAspectRatio="xMidYMax meet"
         >
           <defs>
@@ -265,7 +260,6 @@ const handleMouseMove = (e) => {
 
           {dallar.map((d) => (
             <g key={d.id}>
-              {/* Görünmez kalın hit alanı — hover kolaylaşsın */}
               <path
                 d={`M ${d.x1} ${d.y1} Q ${d.cx} ${d.cy} ${d.x2} ${d.y2}`}
                 stroke="transparent"
@@ -273,19 +267,14 @@ const handleMouseMove = (e) => {
                 fill="transparent"
                 strokeLinecap="round"
                 style={{ cursor: d.cumle ? 'crosshair' : 'default' }}
-                onMouseEnter={(e) => d.cumle && handleMouseEnter(e, d)}
-                onMouseLeave={handleMouseLeave}
+                onMouseEnter={(e) => d.cumle && setTooltip({ x: e.clientX, y: e.clientY, dal: d })}
+                onMouseLeave={() => setTooltip(null)}
                 onTouchStart={(e) => {
                   if (d.cumle) {
-                    setTooltip({ 
-                      x: e.touches[0].clientX, 
-                      y: e.touches[0].clientY, 
-                      dal: d 
-                    });
+                    setTooltip({ x: e.touches[0].clientX, y: e.touches[0].clientY, dal: d });
                   }
                 }}
               />
-              {/* Görsel dal */}
               <motion.path
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 0.9 }}
@@ -302,7 +291,6 @@ const handleMouseMove = (e) => {
           ))}
         </svg>
 
-        {/* TOOLTIP */}
         <AnimatePresence>
           {tooltip && (
             <motion.div
@@ -319,8 +307,7 @@ const handleMouseMove = (e) => {
                 zIndex: 100,
               }}
             >
-              <div
-                style={{
+              <div style={{
                   background: 'rgba(6,6,6,0.93)',
                   border: `1px solid ${tooltip.dal.renk}55`,
                   borderLeft: `3px solid ${tooltip.dal.renk}`,
@@ -329,38 +316,14 @@ const handleMouseMove = (e) => {
                   backdropFilter: 'blur(12px)',
                 }}
               >
-                {/* Duygu etiketi */}
-                <div style={{
-                  fontSize: 9,
-                  fontWeight: 900,
-                  letterSpacing: '0.2em',
-                  textTransform: 'uppercase',
-                  color: tooltip.dal.renk,
-                  marginBottom: 6,
-                  opacity: 0.9,
-                }}>
+                <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: tooltip.dal.renk, marginBottom: 6 }}>
                   {tooltip.dal.duygu}
                 </div>
-
-                {/* Orijinal cümle */}
-                <p style={{
-                  fontSize: 13,
-                  fontStyle: 'italic',
-                  color: 'rgba(255,255,255,0.92)',
-                  lineHeight: 1.6,
-                  margin: '0 0 8px 0',
-                }}>
+                <p style={{ fontSize: 13, fontStyle: 'italic', color: 'rgba(255,255,255,0.92)', lineHeight: 1.6, margin: '0 0 8px 0' }}>
                   "{tooltip.dal.cumle}"
                 </p>
-
-                {/* Neden */}
                 {tooltip.dal.neden && (
-                  <p style={{
-                    fontSize: 11,
-                    color: 'rgba(255,255,255,0.4)',
-                    lineHeight: 1.5,
-                    margin: 0,
-                  }}>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5, margin: 0 }}>
                     {tooltip.dal.neden}
                   </p>
                 )}
