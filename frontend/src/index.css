@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@theme {
+  --font-space: "Space Grotesk", sans-serif;
+}
+
+body {
+  @apply bg-[#020202] text-white overflow-hidden font-space;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 380px;
+  min-width: 380px;
+  height: 100vh;
+  padding: 2rem;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(24px);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.canvas-area {
+  flex: 1;
+  height: 100vh;
+  position: relative;
+  background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%);
+  overflow: hidden;
+}
+
+/* SVG tam canvas'ı kaplasın */
+.canvas-area svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.legend-grid {
+  @apply grid grid-cols-2 gap-3 mb-8 text-[10px] font-bold tracking-widest;
+}
+
+.legend-item {
+  @apply flex items-center gap-2 drop-shadow-md;
+}
+
+.manifesto-input {
+  @apply flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-white/30 transition-all resize-none mb-6 text-white/80;
+}
+
+.btn-filizlendir {
+  @apply w-full py-4 rounded-full bg-white text-black font-black hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 cursor-pointer;
+}
+
+.summary-card {
+  @apply mt-8 p-6 rounded-2xl bg-white/5 border-l-4 shadow-lg;
+}
+
+.branch-path {
+  filter: blur(0.5px) drop-shadow(0 0 8px currentColor);
+  transition: all 0.8s ease-in-out;
+}
+
+/* MOBİL UYUM (Sihirli Dokunuş) */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column; /* Yan yana değil, alt alta diz */
+  }
+  
+  .sidebar {
+    width: 100%;
+    min-width: 100%;
+    height: 45vh; /* Ekranın %45'ini alsın */
+    padding: 1rem;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    overflow-y: auto; /* İçerik sığmazsa kaydırılsın */
+  }
+
+  .canvas-area {
+    height: 55vh; /* Kalan %55'te ağaç büyüsün */
+  }
+
+  /* Telefondaki klavye açıldığında input daha kibar dursun */
+  .manifesto-input {
+    min-height: 80px;
+  }
+}
